@@ -47,7 +47,6 @@ for i in range(n_games):
         else:
             action = players[(i + 1) % 2].decision(*obs)
         step_info = env.take_shot(action)
-        
         done, info = env.get_done()
         if not done:
             if step_info.get('FOUL_FIRST_HIT'):

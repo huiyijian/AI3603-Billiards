@@ -487,7 +487,7 @@ if __name__ == '__main__':
         env.take_shot(action)
         
         # 观看当前杆，使用ESC退出
-        # pt.show(env.shot_record[-1], title=f"hit count: {env.hit_count}")
+        #pt.show(env.shot_record[-1], title=f"hit count: {env.hit_count}")
         
         done, info = env.get_done()
         if done:
