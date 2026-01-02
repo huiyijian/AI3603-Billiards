@@ -15,7 +15,9 @@ evaluate.py - Agent 评估脚本
 # 导入必要的模块
 from utils import set_random_seed
 from poolenv import PoolEnv
-from agents import BasicAgent, BasicAgentPro, NewAgent
+from agents import BasicAgent, BasicAgentPro, NewAgent, AdvancedAgent, SmartAgent
+
+import collections
 
 # 设置随机种子，enable=True 时使用固定种子，enable=False 时使用完全随机
 # 根据需求，我们在这里统一设置随机种子，确保 agent 双方的全局击球扰动使用相同的随机状态
@@ -23,10 +25,13 @@ set_random_seed(enable=False, seed=42)
 
 env = PoolEnv()
 results = {'AGENT_A_WIN': 0, 'AGENT_B_WIN': 0, 'SAME': 0}
+# 统计比赛结束原因
+loss_reasons = collections.defaultdict(lambda: collections.defaultdict(int))
+
 n_games = 120  # 对战局数 自己测试时可以修改 扩充为120局为了减少随机带来的扰动
 
 ## 选择对打的对手
-agent_a, agent_b = BasicAgent(), NewAgent() # 与 BasicAgent 对打
+agent_a, agent_b = BasicAgent(), SmartAgent() # 与 BasicAgent 对打
 # agent_a, agent_b = BasicAgentPro(), NewAgent() # 与 BasicAgentPro 对打
 
 players = [agent_a, agent_b]  # 用于切换先后手
@@ -64,16 +69,58 @@ for i in range(n_games):
                 print(f"对方球入袋：{step_info['ENEMY_INTO_POCKET']}")
         if done:
             # 统计结果（player A/B 转换为 agent A/B） 
-            if info['winner'] == 'SAME':
+            winner = info['winner']
+            reason = info.get('reason', 'UNKNOWN')
+            
+            # 记录胜负
+            if winner == 'SAME':
                 results['SAME'] += 1
-            elif info['winner'] == 'A':
+            elif winner == 'A':
                 results[['AGENT_A_WIN', 'AGENT_B_WIN'][i % 2]] += 1
             else:
                 results[['AGENT_A_WIN', 'AGENT_B_WIN'][(i+1) % 2]] += 1
+            
+            # 记录结束原因
+            # i % 2 == 0: Player A is agent_a, Player B is agent_b
+            # i % 2 == 1: Player A is agent_b, Player B is agent_a
+            
+            agent_a_name = agent_a.__class__.__name__
+            agent_b_name = agent_b.__class__.__name__
+            
+            # 当前局谁是Player A
+            current_player_a_is_agent_a = (i % 2 == 0)
+            
+            # winner is 'A', 'B', or 'SAME'
+            winner_agent_name = "DRAW"
+            if winner == 'A':
+                winner_agent_name = agent_a_name if current_player_a_is_agent_a else agent_b_name
+            elif winner == 'B':
+                winner_agent_name = agent_b_name if current_player_a_is_agent_a else agent_a_name
+            
+            loss_reasons[winner_agent_name][reason] += 1
+            if winner != 'SAME':
+                # 记录输家的原因（通常更有价值）
+                loser_agent_name = agent_b_name if winner_agent_name == agent_a_name else agent_a_name
+                loss_reasons[loser_agent_name][f"LOST_BY_{reason}"] += 1
+
             break
+
+import pooltool as pt
 
 # 计算分数：胜1分，负0分，平局0.5
 results['AGENT_A_SCORE'] = results['AGENT_A_WIN'] * 1 + results['SAME'] * 0.5
 results['AGENT_B_SCORE'] = results['AGENT_B_WIN'] * 1 + results['SAME'] * 0.5
 
 print("\n最终结果：", results)
+print("\n详细结束原因统计:")
+for agent_name, reasons in loss_reasons.items():
+    print(f"\n{agent_name}:")
+    for reason, count in reasons.items():
+        print(f"  {reason}: {count}")
+
+# 可视化最后一场比赛
+if n_games == 1 and hasattr(env, 'shot_record') and len(env.shot_record) > 0:
+    # 已经被用户要求移除回放功能，所以这里不再显示
+    pass
+    # print("\n正在启动回放 (按 'n' 下一杆, 'p' 上一杆, ESC 退出)...")
+    # pt.show(env.shot_record, title="Game Replay")
