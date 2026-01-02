@@ -108,14 +108,24 @@ class SmartAgent(Agent):
             shot = self._simulate_action(balls, table, action)
             if shot:
                 score = self._analyze_shot_reward(shot, balls, targets)
+                
+                # 即使是随机兜底，也绝对不能选直接导致判负的动作
+                if score <= -400: continue
+
                 # 稍微偏向于碰到任意球的
                 if score > best_score:
                     best_score = score
                     best_action = action
         
         if best_action:
-            print(f"[SmartAgent] 随机兜底成功找到方案 (得分: {best_score})")
-            return best_action
+            # 双重保险：对选出的最佳兜底动作再做一次快速鲁棒性检查（3次即可）
+            # 这里的 difficulty 没用，随便填一个
+            cand = {'action': best_action, 'shot_type': 'FALLBACK', 'target_ball': None}
+            if self._check_robustness(cand, balls, table, targets, n_checks=3) > 0:
+                print(f"[SmartAgent] 随机兜底成功找到方案 (得分: {best_score})")
+                return best_action
+            else:
+                print(f"[SmartAgent] 随机兜底方案未通过鲁棒性检查，放弃")
         
         return self._random_safe_action(balls, table)
 
@@ -249,13 +259,33 @@ class SmartAgent(Agent):
                 phi = np.degrees(np.arctan2(aim_vector[1], aim_vector[0])) % 360
                 V0 = np.clip(1.0 + (dist_cue_to_ghost + dist_to_pocket) * 1.8, 1.0, 5.0)
                 
-                for v_factor in [1.0, 1.1]:
-                    candidates.append({
+                # 生成变种动作：正常、大力、左右微调
+                # 1. 正常力度
+                candidates.append({
+                    'shot_type': 'DIRECT',
+                    'target_ball': target_id,
+                    'pocket_id': pocket_id,
+                    'action': {'V0': V0, 'phi': phi, 'theta': 0, 'a': 0, 'b': 0},
+                    'difficulty': cut_angle + dist_cue_to_ghost * 5
+                })
+                
+                # 2. 大力出奇迹 (力度稍大，减少变线风险)
+                candidates.append({
+                    'shot_type': 'DIRECT',
+                    'target_ball': target_id,
+                    'pocket_id': pocket_id,
+                    'action': {'V0': min(V0 * 1.2, 7.5), 'phi': phi, 'theta': 0, 'a': 0, 'b': 0},
+                    'difficulty': cut_angle + dist_cue_to_ghost * 5 + 5 # 略微增加难度惩罚
+                })
+
+                # 3. 角度微调 (左右各偏 0.5 度)
+                for offset in [-0.5, 0.5]:
+                     candidates.append({
                         'shot_type': 'DIRECT',
                         'target_ball': target_id,
                         'pocket_id': pocket_id,
-                        'action': {'V0': V0 * v_factor, 'phi': phi, 'theta': 0, 'a': 0, 'b': 0},
-                        'difficulty': cut_angle + dist_cue_to_ghost * 5
+                        'action': {'V0': V0, 'phi': (phi + offset) % 360, 'theta': 0, 'a': 0, 'b': 0},
+                        'difficulty': cut_angle + dist_cue_to_ghost * 5 + 2 # 难度略高
                     })
         return candidates
 

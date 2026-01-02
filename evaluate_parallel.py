@@ -102,8 +102,8 @@ def play_single_game(game_id, agent_a_cls_name, agent_b_cls_name, seed):
 def main():
     # 参数设置
     n_games = 120
-    # 保留两个核心给系统，最少使用1个核心
-    n_processes = max(1, multiprocessing.cpu_count() - 2) 
+    # 使用所有可用核心以获得最快速度
+    n_processes = multiprocessing.cpu_count() 
     
     agent_a_name = 'BasicAgent'
     agent_b_name = 'SmartAgent'
