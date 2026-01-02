@@ -30,7 +30,7 @@ sys.path.append(os.path.dirname(__file__))
 try:
     from utils import set_random_seed
     from poolenv import PoolEnv
-    from agents import BasicAgent, BasicAgentPro, NewAgent, AdvancedAgent, SmartAgent
+    from agents import BasicAgent, BasicAgentPro, NewAgent, AdvancedAgent, SmartAgent, AlphaAgent
 except ImportError as e:
     # 第一次运行时可能会因为 path 问题报错，但在子进程中 path 已经设置好了
     pass
@@ -42,7 +42,7 @@ def play_single_game(game_id, agent_a_cls_name, agent_b_cls_name, seed):
     # 重新导入以确保在子进程中可用
     from utils import set_random_seed
     from poolenv import PoolEnv
-    from agents import BasicAgent, BasicAgentPro, NewAgent, AdvancedAgent, SmartAgent
+    from agents import BasicAgent, BasicAgentPro, NewAgent, AdvancedAgent, SmartAgent, AlphaAgent
     
     # 设置随机种子
     set_random_seed(enable=False, seed=seed)
@@ -55,7 +55,8 @@ def play_single_game(game_id, agent_a_cls_name, agent_b_cls_name, seed):
         'BasicAgentPro': BasicAgentPro,
         'NewAgent': NewAgent,
         'AdvancedAgent': AdvancedAgent,
-        'SmartAgent': SmartAgent
+        'SmartAgent': SmartAgent,
+        'AlphaAgent': AlphaAgent
     }
     
     try:
@@ -105,8 +106,8 @@ def main():
     # 使用所有可用核心以获得最快速度
     n_processes = multiprocessing.cpu_count() 
     
-    agent_a_name = 'BasicAgent'
-    agent_b_name = 'SmartAgent'
+    agent_a_name = 'AlphaAgent'
+    agent_b_name = 'BasicAgent'
     
     print(f"开始并行评估: {n_games} 局, 使用 {n_processes} 个进程")
     print(f"Agent A: {agent_a_name}, Agent B: {agent_b_name}")
